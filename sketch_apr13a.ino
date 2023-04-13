@@ -13,6 +13,10 @@
 #define DHTTYPE DHT22   // DHT 22  (AM2302)
 //#define DHTTYPE DHT21   // DHT 21 (AM2301)
 
+// Sensor pins
+#define sensorPower 8
+#define sensorPin A0
+
 // Initialize DHT sensor for normal 16mhz Arduino:
 DHT dht = DHT(DHTPIN, DHTTYPE);
 
@@ -43,6 +47,11 @@ PubSubClient client(wifiClient);
 //PubSubClient client(host, port, NULL, wifiClient);
 
 void setup() {
+  pinMode(sensorPower, OUTPUT);
+	
+	// Initially keep the sensor OFF
+	digitalWrite(sensorPower, LOW);
+	
   // Begin serial communication at a baud rate of 9600:
   Serial.begin(9600);
   while (!Serial) {
@@ -66,6 +75,7 @@ void setup() {
 
 float lastH;
 float lastT;
+float lastM;
 
 void loop() {
     // Wait a few seconds between measurements:
@@ -78,6 +88,9 @@ void loop() {
   float h = dht.readHumidity();
   // Read the temperature as Celsius:
   float t = dht.readTemperature();
+  //get the reading from the function below and print it
+
+	float m = readMoistureSensor();
 
   // Check if any reads failed and exit early (to try again):
   if (isnan(h) || isnan(t)) {
@@ -86,33 +99,43 @@ void loop() {
   }
 
   // Compute heat index in Celsius:
-  float hic = dht.computeHeatIndex(t, h, false);
+  //float hic = dht.computeHeatIndex(t, h, false);
 
   //calculate difference between current values and previous values
   float diffH = fabs(h - lastH);
   float diffT = fabs(t - lastT);
+  float diffM = fabs(m - lastM);
 
-  if (diffH > 0.1 || diffT > 0.1) {
+  if (diffH > 0.1 || diffT > 0.1 || diffM > 1) {
    
     //print to serial port
-    print(t, h, hic);
+    print(t, h, m);
 
     //display
-    display(t, h, hic);
+    display(t, h, m);
     
     //
-    publish(t, h, hic);
+    publish(t, h, m);
 
     //store last values
     lastH = h;
     lastT = t;
+    lastM = m;
     
     delay(5000);
     client.loop();
   }
 }
 
-void print(float t, float h, float hic) {
+float readMoistureSensor() {
+	digitalWrite(sensorPower, HIGH);	// Turn the sensor ON
+	delay(10);							// Allow power to settle
+	float val = analogRead(sensorPin);	// Read the analog value form sensor
+	digitalWrite(sensorPower, LOW);		// Turn the sensor OFF
+	return val;							// Return analog moisture value
+}
+
+void print(float t, float h, float m) {
   Serial.print("Humidity: ");
   Serial.print(h);
   Serial.print(" % ");
@@ -120,14 +143,12 @@ void print(float t, float h, float hic) {
   Serial.print(t);
   Serial.print(" \xC2\xB0");
   Serial.print("C | ");
-  Serial.print("Heat index: ");
-  Serial.print(hic);
-  Serial.print(" \xC2\xB0");
-  Serial.print("C");
+  Serial.print("Moisture: ");
+	Serial.print(m);
   Serial.print("\n");
 }
 
-void display(float t, float h, float hic) {
+void display(float t, float h, float m) {
   // LCD display
   lcd.begin(16, 2);
   lcd.setCursor(0,0);
@@ -145,10 +166,11 @@ void display(float t, float h, float hic) {
   lcd.print("%");
 }
 
-void publish(float t, float h, float hic) {
+void publish(float t, float h, float m) {
   StaticJsonDocument<256> doc;
   doc["temperature"] = t;
   doc["humidity"] = h;
+  doc["moisture_soil"] = m;
 
   char out[128];
   int b =serializeJson(doc, out);
