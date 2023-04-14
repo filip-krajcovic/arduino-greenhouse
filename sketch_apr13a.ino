@@ -76,6 +76,7 @@ void setup() {
 float lastH;
 float lastT;
 float lastM;
+int percentage;
 
 void loop() {
     // Wait a few seconds between measurements:
@@ -91,6 +92,8 @@ void loop() {
   //get the reading from the function below and print it
 
 	float m = readMoistureSensor();
+  percentage = 100-(m-0) /( 1023.0-0) * 100;
+ 
 
   // Check if any reads failed and exit early (to try again):
   if (isnan(h) || isnan(t)) {
@@ -109,13 +112,13 @@ void loop() {
   if (diffH > 0.1 || diffT > 0.1 || diffM > 1) {
    
     //print to serial port
-    print(t, h, m);
+    print(t, h, percentage);
 
     //display
-    display(t, h, m);
+    display(t, h, percentage);
     
     //
-    publish(t, h, m);
+    publish(t, h, percentage);
 
     //store last values
     lastH = h;
@@ -135,20 +138,21 @@ float readMoistureSensor() {
 	return val;							// Return analog moisture value
 }
 
-void print(float t, float h, float m) {
+void print(float t, float h, float percentage) {
   Serial.print("Humidity: ");
   Serial.print(h);
-  Serial.print(" % ");
+  Serial.print("% | ");
   Serial.print("Temperature: ");
   Serial.print(t);
   Serial.print(" \xC2\xB0");
   Serial.print("C | ");
-  Serial.print("Moisture: ");
-	Serial.print(m);
+  Serial.print("Percentage: ");
+	Serial.print(percentage);
+  Serial.print("% ");
   Serial.print("\n");
 }
 
-void display(float t, float h, float m) {
+void display(float t, float h, float percentage) {
   // LCD display
   lcd.begin(16, 2);
   lcd.setCursor(0,0);
@@ -164,13 +168,26 @@ void display(float t, float h, float m) {
   lcd.print(h);
   lcd.setCursor(15,1);
   lcd.print("%");
+  delay(5000);
+  lcd.clear();
+  lcd.begin(16, 2);
+  lcd.setCursor(0,0);
+  lcd.print("Vlhkost");
+  lcd.setCursor(0,1);
+  lcd.print("pody:");
+  lcd.setCursor(6,1);
+  lcd.print(percentage);
+  lcd.setCursor(12,1);
+  lcd.print("%");
+  delay(5000);
+
 }
 
-void publish(float t, float h, float m) {
+void publish(float t, float h, float percentage) {
   StaticJsonDocument<256> doc;
   doc["temperature"] = t;
   doc["humidity"] = h;
-  doc["moisture_soil"] = m;
+  doc["percentage"] = percentage;
 
   char out[128];
   int b =serializeJson(doc, out);
