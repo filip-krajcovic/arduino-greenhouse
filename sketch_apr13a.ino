@@ -75,7 +75,7 @@ void setup() {
 
 float lastH;
 float lastT;
-float lastM;
+float lastP;
 int percentage;
 
 void loop() {
@@ -93,7 +93,6 @@ void loop() {
 
 	float m = readMoistureSensor();
   percentage = 100-(m-0) /( 1023.0-0) * 100;
- 
 
   // Check if any reads failed and exit early (to try again):
   if (isnan(h) || isnan(t)) {
@@ -107,12 +106,27 @@ void loop() {
   //calculate difference between current values and previous values
   float diffH = fabs(h - lastH);
   float diffT = fabs(t - lastT);
-  float diffM = fabs(m - lastM);
+  float diffP = fabs(percentage - lastP);
 
-  if (diffH > 0.1 || diffT > 0.1 || diffM > 1) {
+  if (diffH > 0.1 || diffT > 0.1 || diffP > 1) {
    
     //print to serial port
     print(t, h, percentage);
+    if(percentage >= 1 && percentage < 50)
+    {
+      Serial.print("( Too dry ! )");
+      Serial.println("");
+    }
+    if(percentage >= 50 && percentage < 70)
+    {
+      Serial.print("( Ideal humidity ! )");
+      Serial.println("");
+    }
+    if(percentage >= 70 && percentage <= 100)
+    {
+      Serial.print("( Too wet ! )");
+      Serial.println("");
+    }
 
     //display
     display(t, h, percentage);
@@ -123,7 +137,7 @@ void loop() {
     //store last values
     lastH = h;
     lastT = t;
-    lastM = m;
+    lastP = percentage;
     
     delay(5000);
     client.loop();
@@ -149,7 +163,6 @@ void print(float t, float h, float percentage) {
   Serial.print("Percentage: ");
 	Serial.print(percentage);
   Serial.print("% ");
-  Serial.print("\n");
 }
 
 void display(float t, float h, float percentage) {
@@ -180,6 +193,7 @@ void display(float t, float h, float percentage) {
   lcd.setCursor(12,1);
   lcd.print("%");
   delay(5000);
+  
 
 }
 
@@ -187,7 +201,7 @@ void publish(float t, float h, float percentage) {
   StaticJsonDocument<256> doc;
   doc["temperature"] = t;
   doc["humidity"] = h;
-  doc["percentage"] = percentage;
+  doc["moisure_soil"] = percentage;
 
   char out[128];
   int b =serializeJson(doc, out);
